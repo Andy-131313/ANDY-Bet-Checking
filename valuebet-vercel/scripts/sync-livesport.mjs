@@ -100,8 +100,26 @@ async function main(){
           await more.click();await wait(1300);
           if(await page.locator('.event__match').count()<=before)break;
         }
-        const data=await extract(page,league,url);
-        if(data.total===0||data.rows.length===0)throw Error('Nenalezeny validní zápasy; možná změna HTML');
+const data=await extract(page,league,url);
+
+// Kontrola prvních 10 zápasů při testovacím importu
+if (dryRun) {
+  console.log('KONTROLA ZAPASU:', JSON.stringify(
+    data.rows.slice(0, 10).map(r => ({
+      date: r.date,
+      home: r.home,
+      away: r.away,
+      status: r.status,
+      score: r.hg !== null && r.ag !== null
+        ? `${r.hg}:${r.ag}`
+        : null
+    })),
+    null,
+    2
+  ));
+}
+
+if(data.total===0||data.rows.length===0)throw Error('Nenalezeny validní zápasy; možná změna HTML');
         // Bezpečnost: vysoká míra neplatných řádků signalizuje změnu parseru.
         if(data.rejected/data.total>0.25)throw Error(`Příliš mnoho odmítnutých řádků (${data.rejected}/${data.total})`);
         let saved=0;
