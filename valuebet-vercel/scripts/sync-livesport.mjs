@@ -34,23 +34,33 @@ async function extract(page,league,url){
   const rows=await page.locator('.event__match').evaluateAll(nodes=>nodes.map(n=>{
     const get=s=>n.querySelector(s)?.textContent?.trim()||'';
     const link=n.querySelector('a[href*="/zapas/"]')?.getAttribute('href')||'';
-    return {id:n.getAttribute('id')||'',home:get('.event__participant--home'),away:get('.event__participant--away'),
-      date:get('.event__time'),hg:get('.event__score--home'),ag:get('.event__score--away'),
-      stage:get('.event__stage'),className:n.className,link};
+    // Nový vzhled Livesportu (twoLine) nemá vždy původní event__participant selektory.
+    // Záložní parsování přijímá JEN pět jasných řádků:
+    // DD.MM. HH:MM / domácí / hosté / góly domácích / góly hostů.
+    const lines=(n.innerText||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    const fallback=lines.length===5 &&
+      /^\d{1,2}\.\d{1,2}\.\s+\d{1,2}:\d{2}$/.test(lines[0]) &&
+      lines[1].length>1 && lines[2].length>1 &&
+      /^\d+$/.test(lines[3]) && /^\d+$/.test(lines[4]);
+    return {
+      id:n.getAttribute('id')||'',
+      home:get('.event__participant--home')||(fallback?lines[1]:''),
+      away:get('.event__participant--away')||(fallback?lines[2]:''),
+      date:get('.event__time')||get('.event__stageTime--date')||(fallback?lines[0]:''),
+      hg:get('.event__score--home')||(fallback?lines[3]:''),
+      ag:get('.event__score--away')||(fallback?lines[4]:''),
+      stage:get('.event__stage'),className:n.className,link,
+      rawSample:lines.slice(0,6)
+    };
   }));
-  const result = [];
-let rejected = 0;
-
-console.log(
-  'PARSER DEBUG:',
-  JSON.stringify(rows.slice(0, 5), null, 2)
-);
-
-for (const r of rows) {
+  const result=[];let rejected=0;
+  for(const r of rows){
     const date=matchDate(r.date);
     const id=r.id.replace(/^g_\d+_/,'').trim();
-    const finished=/event__match--static|event__match--scheduled/.test(r.className)?false:
-      /event__match--live/.test(r.className)?false:
+    // /vysledky/ can still contain matches in progress; conservatively skip today.
+    const todayPrague=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Prague',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const finished=Boolean(date && date<todayPrague) &&
+      !/event__match--static|event__match--scheduled|event__match--live/.test(r.className) &&
       /^\d+$/.test(r.hg)&&/^\d+$/.test(r.ag);
     // Zápasy bez ověřeného finálního stavu neukládat do trénovacích dat.
     if(!id||!date||!r.home||!r.away){rejected++;continue}
@@ -91,22 +101,6 @@ async function main(){
           if(await page.locator('.event__match').count()<=before)break;
         }
         const data=await extract(page,league,url);
-        console.log('DIAGNOSTIKA', JSON.stringify({
-  league,
-  pageUrl: page.url(),
-  title: await page.title(),
-  total: data.total,
-  accepted: data.rows.length,
-  rejected: data.rejected,
-  sample: await page.locator('.event__match').first()
-    .evaluate(n => ({
-      id: n.id,
-      className: n.className,
-      text: n.innerText.slice(0, 500),
-      html: n.outerHTML.slice(0, 1500)
-    }))
-    .catch(() => null)
-}, null, 2));
         if(data.total===0||data.rows.length===0)throw Error('Nenalezeny validní zápasy; možná změna HTML');
         // Bezpečnost: vysoká míra neplatných řádků signalizuje změnu parseru.
         if(data.rejected/data.total>0.25)throw Error(`Příliš mnoho odmítnutých řádků (${data.rejected}/${data.total})`);
