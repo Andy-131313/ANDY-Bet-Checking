@@ -1,0 +1,1 @@
+import type {ReactNode} from 'react';export const metadata={title:'ValueBet Analytics',description:'Football value analysis'};export default function RootLayout({children}:{children:ReactNode}){return <html lang="cs"><body style={{margin:0,background:'#0b1220',color:'#e2e8f0',fontFamily:'Arial,sans-serif'}}>{children}</body></html>}

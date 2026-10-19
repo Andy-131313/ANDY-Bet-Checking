@@ -1,0 +1,5 @@
+import {NextRequest,NextResponse} from 'next/server';import {db,getMatches} from '../../../lib/db';import {predict} from '../../../lib/model';
+export const dynamic='force-dynamic';
+export async function GET(req:NextRequest){try{const sql=db(),matches=await getMatches();const quotes=await sql`SELECT league,date,home,away,bookmaker,outcome,price,captured_at FROM odds`;const threshold=Number(req.nextUrl.searchParams.get('min_ev')??'0');const cache=new Map();const results=[];
+for(const q of quotes){const key=[q.league,q.date,q.home,q.away].join('|');if(!cache.has(key)){try{cache.set(key,predict({league:String(q.league),date:String(q.date),home:String(q.home),away:String(q.away)},matches))}catch{cache.set(key,null)}}const pred=cache.get(key);if(!pred||!['1','X','2'].includes(String(q.outcome)))continue;const outcome=q.outcome as '1'|'X'|'2',p=pred.probabilities[outcome],ev=(p*Number(q.price)-1)*100;if(ev>=threshold)results.push({...q,probability:p,fair_odds:1/p,ev_pct:ev,sample_size:pred.sampleSize})}
+return NextResponse.json(results.sort((a,b)=>b.ev_pct-a.ev_pct))}catch(e){return NextResponse.json({error:String(e)},{status:500})}}

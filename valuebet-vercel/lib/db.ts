@@ -1,0 +1,4 @@
+import {neon} from '@neondatabase/serverless';
+export function db(){if(!process.env.DATABASE_URL)throw Error('DATABASE_URL není nastaveno');return neon(process.env.DATABASE_URL)}
+export async function initialize(){const sql=db();await sql`CREATE TABLE IF NOT EXISTS matches (league text NOT NULL,date text NOT NULL,home text NOT NULL,away text NOT NULL,hg integer NOT NULL,ag integer NOT NULL,PRIMARY KEY(league,date,home,away))`;await sql`CREATE TABLE IF NOT EXISTS odds (league text NOT NULL,date text NOT NULL,home text NOT NULL,away text NOT NULL,bookmaker text NOT NULL,outcome text NOT NULL,price double precision NOT NULL,captured_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(league,date,home,away,bookmaker,outcome))`}
+export async function getMatches(){const sql=db();return (await sql`SELECT league,date,home,away,hg,ag FROM matches`) as unknown as import('./model').Match[]}

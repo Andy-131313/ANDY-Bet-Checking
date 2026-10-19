@@ -1,0 +1,2 @@
+import {NextResponse} from 'next/server';import {getMatches} from '../../../lib/db';import {predict} from '../../../lib/model';
+export async function POST(req:Request){try{const f=await req.json();if(!['league','date','home','away'].every(k=>typeof f[k]==='string'&&f[k]))return NextResponse.json({error:'Neplatný zápas'},{status:400});return NextResponse.json(predict(f,await getMatches()))}catch(e){return NextResponse.json({error:String(e)},{status:422})}}
