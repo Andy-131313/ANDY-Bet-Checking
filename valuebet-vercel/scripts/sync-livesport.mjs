@@ -38,8 +38,15 @@ async function extract(page,league,url){
       date:get('.event__time'),hg:get('.event__score--home'),ag:get('.event__score--away'),
       stage:get('.event__stage'),className:n.className,link};
   }));
-  const result=[];let rejected=0;
-  for(const r of rows){
+  const result = [];
+let rejected = 0;
+
+console.log(
+  'PARSER DEBUG:',
+  JSON.stringify(rows.slice(0, 5), null, 2)
+);
+
+for (const r of rows) {
     const date=matchDate(r.date);
     const id=r.id.replace(/^g_\d+_/,'').trim();
     const finished=/event__match--static|event__match--scheduled/.test(r.className)?false:
