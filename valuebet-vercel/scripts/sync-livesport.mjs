@@ -84,6 +84,22 @@ async function main(){
           if(await page.locator('.event__match').count()<=before)break;
         }
         const data=await extract(page,league,url);
+        console.log('DIAGNOSTIKA', JSON.stringify({
+  league,
+  pageUrl: page.url(),
+  title: await page.title(),
+  total: data.total,
+  accepted: data.rows.length,
+  rejected: data.rejected,
+  sample: await page.locator('.event__match').first()
+    .evaluate(n => ({
+      id: n.id,
+      className: n.className,
+      text: n.innerText.slice(0, 500),
+      html: n.outerHTML.slice(0, 1500)
+    }))
+    .catch(() => null)
+}, null, 2));
         if(data.total===0||data.rows.length===0)throw Error('Nenalezeny validní zápasy; možná změna HTML');
         // Bezpečnost: vysoká míra neplatných řádků signalizuje změnu parseru.
         if(data.rejected/data.total>0.25)throw Error(`Příliš mnoho odmítnutých řádků (${data.rejected}/${data.total})`);
