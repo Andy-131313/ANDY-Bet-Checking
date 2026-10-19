@@ -1,0 +1,33 @@
+name: Livesport results sync
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-import:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: valuebet-vercel
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Test Premier League import
+        env:
+          ONLY_LEAGUE: PL
+          LIVESPORT_PL_URL: ${{ vars.LIVESPORT_PL_URL }}
+        run: npm run sync:livesport -- --dry-run
